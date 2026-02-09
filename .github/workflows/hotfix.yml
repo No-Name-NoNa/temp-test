@@ -1,0 +1,93 @@
+# Hotfix Branch Workflow - 紧急修复流程
+# 适用于 hotfix/* 分支，支持快速部署到生产环境
+
+name: Hotfix Branch - Emergency Fix
+
+on:
+  push:
+    branches:
+      - 'hotfix/**'
+
+# 最小权限原则
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Hotfix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Production
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hotfix-build
+          path: dist/
+          retention-days: 30
+
+  deploy-hotfix-staging:
+    name: Deploy Hotfix to Staging (Auto)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hotfix-build
+          path: dist/
+
+      - name: Deploy Hotfix to Staging
+        run: |
+          echo "🔥 Deploying Hotfix to Staging for verification..."
+          echo "Artifact downloaded to dist/"
+          # 在这里添加你的预发布环境部署脚本
+          echo "✅ Hotfix deployed to Staging!"
+
+  deploy-hotfix-production:
+    name: Deploy Hotfix to Production (Manual Approval)
+    needs: deploy-hotfix-staging
+    runs-on: ubuntu-latest
+    # 紧急修复也需要手动确认才能部署到生产环境
+    environment:
+      name: production
+      url: https://www.example.com
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hotfix-build
+          path: dist/
+
+      - name: Deploy Hotfix to Production
+        run: |
+          echo "Deploying Hotfix to Production..."
+          echo "Artifact downloaded to dist/"
+          # 在这里添加你的生产环境部署脚本
+          echo "Hotfix deployed to Production!"
+
+      - name: Notify Team - Hotfix Deployed
+        run: |
+          echo "HOTFIX DEPLOYED TO PRODUCTION"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
