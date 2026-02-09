@@ -1,0 +1,116 @@
+# 手动触发工作流 - 用于特殊场景的手动部署
+# 可以选择部署到不同环境
+
+name: Manual Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      branch:
+        description: '部署的分支/标签'
+        required: true
+        default: 'main'
+      skip_tests:
+        description: '跳过测试 (仅用于紧急情况)'
+        required: false
+        type: boolean
+        default: false
+      notes:
+        description: '部署备注'
+        required: false
+        type: string
+
+jobs:
+  confirm:
+    name: Confirm Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      confirmed: ${{ steps.confirm.outputs.confirmed }}
+    steps:
+      - name: Deployment Information
+        id: confirm
+        run: |
+          echo "📋 Deployment Request Summary"
+          echo "================================"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Branch/Tag: ${{ inputs.branch }}"
+          echo "Skip Tests: ${{ inputs.skip_tests }}"
+          echo "Notes: ${{ inputs.notes }}"
+          echo "Requested by: ${{ github.actor }}"
+          echo "================================"
+          echo "confirmed=true" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build Application
+    needs: confirm
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-deploy-build
+          path: dist/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ inputs.environment }}
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: manual-deploy-build
+          path: dist/
+
+      - name: Deploy to ${{ inputs.environment }}
+        run: |
+          echo "🚀 Manual Deployment Started"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Deploying..."
+          # 在这里添加实际的部署脚本
+          echo "✅ Deployment completed!"
+
+      - name: Deployment Summary
+        run: |
+          echo "📊 Deployment Summary"
+          echo "====================="
+          echo "Status: SUCCESS"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Deployed by: ${{ github.actor }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Notes: ${{ inputs.notes }}"

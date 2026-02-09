@@ -1,0 +1,68 @@
+# Release Branch Workflow - 需要手动确认部署到预发布环境
+# 适用于 release/* 分支
+
+name: Release Branch - Deploy to Staging
+
+on:
+  push:
+    branches:
+      - 'release/**'
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Production
+        run: npm run build
+        env:
+          NODE_ENV: production
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+          retention-days: 30
+
+  deploy-staging:
+    name: Deploy to Staging (Manual Approval)
+    needs: build
+    runs-on: ubuntu-latest
+    # 需要手动批准才能部署到 staging 环境
+    environment: 
+      name: staging
+      url: https://staging.example.com
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+
+      - name: Deploy to Staging Environment
+        run: |
+          echo "🚀 Deploying to Staging Environment..."
+          echo "Artifact downloaded to dist/"
+          # 在这里添加你的预发布环境部署脚本
+          echo "✅ Deployment to Staging completed!"
+
+      - name: Notify Team
+        run: |
+          echo "📣 Release deployed to Staging!"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
