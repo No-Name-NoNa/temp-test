@@ -1,0 +1,78 @@
+# GitHub Pages 部署工作流
+# 当在 main 分支创建 tag 后自动部署静态网页到 GitHub Pages
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 匹配版本标签，如 v1.0.0, v2.1.3
+      - 'v*'      # 也支持简单版本，如 v1, v2
+
+# 设置 GITHUB_TOKEN 的权限，用于部署到 GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 只允许同时进行一个部署，跳过正在运行和最新队列之间排队的运行
+# 但不取消正在进行的运行，因为我们希望完成这些生产部署
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 构建任务
+  build:
+    name: Build for GitHub Pages
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Production
+        run: npm run build
+        env:
+          NODE_ENV: production
+          GITHUB_PAGES: 'true'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # 上传 dist 目录
+          path: './dist'
+
+  # 部署任务
+  deploy:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Notify Deployment Success
+        run: |
+          echo "🎉 GitHub Pages 部署成功!"
+          echo "Tag: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "部署时间: $(date)"
+          echo "部署者: ${{ github.actor }}"
