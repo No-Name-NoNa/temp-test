@@ -29,6 +29,10 @@ on:
         required: false
         type: string
 
+# 最小权限原则
+permissions:
+  contents: read
+
 jobs:
   confirm:
     name: Confirm Deployment

@@ -8,6 +8,10 @@ on:
     branches:
       - 'release/**'
 
+# 最小权限原则
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Release

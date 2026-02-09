@@ -8,6 +8,10 @@ on:
     branches:
       - develop
 
+# 最小权限原则
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build

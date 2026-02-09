@@ -15,6 +15,10 @@ on:
       - main
       - 'release/**'
 
+# 最小权限原则
+permissions:
+  contents: read
+
 jobs:
   lint-and-build:
     name: Lint and Build
