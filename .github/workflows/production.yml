@@ -1,0 +1,81 @@
+# Production Workflow - 生产环境部署，需要手动确认
+# 当代码合并到 main 分支时触发
+
+name: Production - Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+# 最小权限原则
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build for Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Production
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: dist/
+          retention-days: 90
+
+  deploy-production:
+    name: Deploy to Production (Manual Approval Required)
+    needs: build
+    runs-on: ubuntu-latest
+    # 生产环境部署需要手动批准
+    environment:
+      name: production
+      url: https://www.example.com
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build
+          path: dist/
+
+      - name: Deploy to Production
+        run: |
+          echo "Deploying to Production Environment..."
+          echo "Artifact downloaded to dist/"
+          # 在这里添加你的生产环境部署脚本
+          # 例如: AWS S3, CloudFront, Azure, GCP, Kubernetes 等
+          echo "Production deployment completed!"
+
+      - name: Create Release Tag
+        run: |
+          echo "Creating release tag..."
+          echo "Version: $(date +'%Y.%m.%d')-${{ github.run_number }}"
+          # 可以在这里添加自动创建 Git tag 的逻辑
+
+      - name: Notify Team - Production Deployed
+        run: |
+          echo "PRODUCTION DEPLOYMENT SUCCESSFUL"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
+          echo "Run ID: ${{ github.run_id }}"
